@@ -45,13 +45,6 @@ options:
 '''
 
 EXAMPLES = '''
-- name: Change the bootid of a dedicated server to rescue
-  synthesio.ovh.dedicated_server_boot:
-    service_name: {{ service_name }}
-    boot: "rescue"
-    force_reboot: "true"
-  delegate_to: localhost
-
 - name : Create a nasha partition with specified ACL
     synthesio.ovh.dedicated_nasha_manage_partition:
     nas_service_name: {{ nas_service_name }}
