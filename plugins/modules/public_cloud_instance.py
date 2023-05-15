@@ -91,32 +91,61 @@ except ImportError:
 
 def run_module():
     module_args = ovh_argument_spec()
-    module_args.update(
-        dict(
-            name=dict(required=True),
-            flavor_id=dict(required=True),
-            image_id=dict(required=True),
-            service_name=dict(required=True),
-            ssh_key_id=dict(required=False, default=None),
-            region=dict(required=True),
-            networks=dict(required=False, default=[], type="list"),
-            monthly_billing=dict(required=False, default=False, type="bool"),
-            force_reinstall=dict(required=False, default=False, type="bool"),
-        )
+    module_args.update(dict(
+        name=dict(required=True),
+        flavor_id=dict(required=True),
+        image_id=dict(required=True),
+        service_name=dict(required=True),
+        ssh_key_id=dict(required=False, default=None),
+        region=dict(required=True),
+        networks=dict(required=False, default=[], type="list"),
+        monthly_billing=dict(required=False, default=False, type="bool"),
+        force_reinstall=dict(required=False, default=False, type="bool")
+    ))
+
+    module = AnsibleModule(
+        argument_spec=module_args,
+        supports_check_mode=True
     )
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     client = ovh_api_connect(module)
 
-    name = module.params["name"]
-    service_name = module.params["service_name"]
-    flavor_id = module.params["flavor_id"]
-    image_id = module.params["image_id"]
-    ssh_key_id = module.params["ssh_key_id"]
-    region = module.params["region"]
-    networks = module.params["networks"]
-    monthly_billing = module.params["monthly_billing"]
-    force_reinstall = module.params["force_reinstall"]
+    name = module.params['name']
+    service_name = module.params['service_name']
+    flavor_id = module.params['flavor_id']
+    image_id = module.params['image_id']
+    ssh_key_id = module.params['ssh_key_id']
+    region = module.params['region']
+    networks = module.params['networks']
+    monthly_billing = module.params['monthly_billing']
+    force_reinstall = module.params['force_reinstall']
+
+    try:
+        instances_list = client.get('/cloud/project/%s/instance' % (service_name),
+                                    region=region)
+    except APIError as api_error:
+        module.fail_json(msg="Failed to call OVH API: {0}".format(api_error))
+
+    for i in instances_list:
+
+        if i['name'] == name:
+            instance_id = i['id']
+            instance_details = client.get('/cloud/project/%s/instance/%s' % (service_name, instance_id))
+
+            if force_reinstall:
+                try:
+                    reinstall_result = client.post(
+                        '/cloud/project/%s/instance/%s/reinstall' % (service_name, instance_id),
+                        imageId=image_id)
+                    module.exit_json(changed=True, **reinstall_result)
+
+                except APIError as api_error:
+                    module.fail_json(msg="Failed to call OVH API: {0}".format(api_error))
+
+            module.exit_json(changed=False,
+                             msg="Instance {} [{}] in region {} is already installed".format(name, instance_id, region),
+                             **instance_details)
 
     try:
         instances_list = client.get(

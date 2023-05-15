@@ -8,10 +8,10 @@ from ansible.module_utils.basic import AnsibleModule
 
 DOCUMENTATION = '''
 ---
-module: dedicated_server_install_wait
-short_description: Wait until the dedicated server installation is done
+module: dedicated_server_boot_wait
+short_description: Wait until the dedicated server hard reboot is done
 description:
-    - Wait until the dedicated server installation is done
+    - Wait until the dedicated server hard reboot is done
     - Can be used to wait before running next task in your playbook
 author: Synthesio SRE Team
 requirements:
@@ -32,8 +32,8 @@ options:
 '''
 
 EXAMPLES = '''
-- name: Wait until the dedicated server installation is done
-  synthesio.ovh.dedicated_server_install_wait:
+- name: Wait until the dedicated server hard reboot is done
+  synthesio.ovh.dedicated_server_boot_wait:
     service_name: "ns12345.ip-1-2-3.eu"
     max_retry: "240"
     sleep: "10"
@@ -77,26 +77,19 @@ def run_module():
         try:
             tasklist = client.get(
                 '/dedicated/server/%s/task' % service_name,
-                function='reinstallServer')
+                function='hardReboot')
             result = client.get(
                 '/dedicated/server/%s/task/%s' % (service_name, max(tasklist)))
         except APIError as api_error:
-            return module.fail_json(msg="Failed to call OVH API: {0}".format(api_error))
+            return module.fail_jsonl(msg="Failed to call OVH API: {0}".format(api_error))
 
         message = ""
-        # Get more details in installation progression
+        # Get details in reboot progression
         if "done" in result['status']:
             module.exit_json(msg="{}: {}".format(result['status'], message), changed=False)
-
-        progress_status = client.get(
-            '/dedicated/server/%s/install/status' % service_name
-        )
-        if 'message' in progress_status and progress_status['message'] == 'Server is not being installed or reinstalled at the moment':
-            message = progress_status['message']
         else:
-            for progress in progress_status['progress']:
-                if progress["status"] == "doing":
-                    message = progress['comment']
+            message = result['status']
+
         time.sleep(float(sleep))
     module.fail_json(msg="Max wait time reached, about %i x %i seconds" % (i, int(sleep)))
 

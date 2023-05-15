@@ -1,25 +1,26 @@
-# An Ansible module to talk with OVH API
+# An Ansible collection to talk with OVH API
 
 ## Requirements
 
 Tested with:
 
-- Python 3.7
-- [Python-ovh 0.5](https://github.com/ovh/python-ovh)
-- Ansible 2.9
+- Python 3.9
+- [Python-ovh 1.0](https://github.com/ovh/python-ovh)
+- Ansible 2.12+
 
 ## Collection
 
-This repository must be a submodule of ansible:
+This module can be [installed as a collection](https://docs.ansible.com/ansible/latest/user_guide/collections_using.html#installing-a-collection-from-a-git-repository)
 
 ```shell
-git submodule add -f https://github.com/synthesio/infra-ovh-ansible-module collections/ansible_collections/synthesio/ovh
+ansible-galaxy collection install git+https://github.com/synthesio/infra-ovh-ansible-module
 ```
 
-This collection provide the following modules:
+This collection provides the following modules:
 
 ```text
 dedicated_server_boot
+dedicated_server_boot_wait
 dedicated_server_display_name
 dedicated_server_info
 dedicated_server_install
@@ -35,22 +36,17 @@ public_cloud_flavorid_info
 public_cloud_imageid_info
 public_cloud_instance_info
 public_cloud_instance
+public_cloud_instance_delete
 public_cloud_monthly_billing
 public_cloud_block_storage_instance
 public_cloud_block_storage
+public_cloud_object_storage
+public_cloud_object_storage_policy
 ```
 
 You can read the documentation of every modules with `ansible-doc synthesio.ovh.$modules`
 
 An example for a custom template to install a dedicated server is present in `roles/ovhtemplate` folder
-
-## Upgrade from synthesio.ovh < 5.0.0
-
-Before version 5.0.0 of the collection, all tasks were in the same `synthesio.ovh.ovh` module !
-Since 5.0.0, the collection has been rewritten: it is now split into multiple modules, which is easier to maintain, enhance, debug,
-and more ansible collection compliant.
-
-If you are upgrading from 4.0.0 and earlier, please read the doc and update your playbooks !
 
 ## Configuration
 
@@ -116,6 +112,8 @@ A few examples:
     value: "192.0.2.1"
     record_type: "A"
     name: "internal.bar"
+    record_ttl: 10
+    append: true
 
 ```
 
@@ -128,11 +126,23 @@ A few examples:
     hostname: "server01.example.net"
     template: "debian10_64"
 
-- Wait for the server installation
-  synthesio.ovh.dedicated_server_wait:
+- name: Wait for the server installation
+  synthesio.ovh.dedicated_server_install_wait:
     service_name: "ns12345.ip-1-2-3.eu"
     max_retry: "240"
     sleep: "10"
+```
+
+### Install a new dedicated server with only 2 disks
+
+```yaml
+- Install new dedicated server
+  synthesio.ovh.dedicated_server_install:
+    service_name: "ns12345.ip-1-2-3.eu"
+    hostname: "server01.example.net"
+    template: "debian10_64"
+    soft_raid_devices: "2"
+
 ```
 
 ### Install a public cloud instance
