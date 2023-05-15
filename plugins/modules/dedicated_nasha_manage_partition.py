@@ -110,10 +110,12 @@ def run_module():
         except APIError as api_error:
             module.fail_json(msg="Failed to create partition: %s" % api_error)
     else:
+        # Get partition
         try:
             client.get('/dedicated/nasha/{0}'.format(nas_service_name))
-        except APIError as api_error:
-            module.fail_json(msg="Failed to get partition: %s" % api_error)
+        except (APIError, ResourceNotFoundError) as error:
+            module.fail_json(msg="Failed to get partition: %s" % error)
+
 
     # Set partition ACL
     if not module.check_mode and nas_partition_acl:
@@ -137,6 +139,17 @@ def run_module():
             except APIError as api_error:
                 module.fail_json(msg="Failed to set partition ACL: %s" % api_error)
 
+    elif not nas_partition_acl:
+        module.exit_json(
+            msg="No ACL specified. Skipping setting partition ACL.",
+            changed=False
+        )
+
+    else:
+        module.exit_json(
+            msg="Check mode is enabled. Skipping setting partition ACL.",
+            changed=False
+        )
 
 def main():
     run_module()
