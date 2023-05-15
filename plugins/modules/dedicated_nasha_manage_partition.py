@@ -33,15 +33,14 @@ options:
         choices: ['NFS', 'CIFS', 'NFS_CIFS']
         description:
         - The protocol of the partition
-    nas_partition_acl_type:
-        required: false
-        choices: ['readonly', 'readwrite']
-        description:
-        - The type of the ACL you want to create
     nas_partition_acl:
-        required: true
+        required: false
+        type: list
+        default: []
         description:
-        - IP or list of IPs you want to create access for
+        - List of dictionaries specifying the ACLs. Each dictionary should contain the following keys:
+          - ip: The IP address or CIDR range for the ACL
+          - type: The type of ACL, either "readwrite" or "readonly". (Default: "readwrite")
 '''
 
 EXAMPLES = '''
@@ -51,10 +50,12 @@ EXAMPLES = '''
     nas_partition_name: "{{ nas_partition_name }}"
     nas_partition_size: 10
     nas_protocol: NFS
-    nas_partition_acl_type: readwrite
     nas_partition_acl:
-      - XX.XX.XX.XX/32
-      - XX.XX.XX.XX/32
+      - ip: XX.XX.XX.XX/32
+        type: readwrite
+      - ip: XX.XX.XX.XX/32
+        type: readonly
+      - ip: XX.XX.XX.XX/32
 '''
 
 RETURN = '''
@@ -80,9 +81,8 @@ def run_module():
         nas_service_name=dict(required=True),
         nas_partition_name=dict(required=True),
         nas_partition_size=dict(required=True),
-        nas_protocol=dict(required=True),
-        nas_partition_acl_type=dict(required=False),
-        nas_partition_acl=dict(required=True, type="list")
+        nas_protocol=dict(required=True, choices=['NFS', 'CIFS', 'NFS_CIFS']),
+        nas_partition_acl=dict(required=False, type="list", default=[])
     ))
 
     module = AnsibleModule(
@@ -95,9 +95,8 @@ def run_module():
     nas_service_name = module.params['nas_service_name']
     nas_partition_name = module.params['nas_partition_name']
     nas_partition_size = module.params['nas_partition_size']
-    nas_partition_acl = module.params['nas_partition_acl']
-    nas_partition_acl_type = module.params['nas_partition_acl_type']
     nas_protocol = module.params['nas_protocol']
+    nas_partition_acl = module.params['nas_partition_acl']
 
     # Create partition
     if not module.check_mode:
@@ -113,24 +112,25 @@ def run_module():
     else:
         try:
             client.get('/dedicated/nasha/{0}'.format(nas_service_name))
-
         except APIError as api_error:
             module.fail_json(msg="Failed to get partition: %s" % api_error)
 
     # Set partition ACL
-    if not module.check_mode:
-        for ip_acl in nas_partition_acl:
+    if not module.check_mode and nas_partition_acl:
+        for acl in nas_partition_acl:
+            acl_ip = acl.get('ip')
+            acl_type = acl.get('type', 'readwrite')
             try:
                 client.post(
                     '/dedicated/nasha/{0}/partition/{1}/access'.format(
                         nas_service_name, nas_partition_name
                     ),
-                    ip=ip_acl,
-                    type=nas_partition_acl_type
+                    ip=acl_ip,
+                    type=acl_type
                 )
                 module.exit_json(
                     msg="IP {} has been added to ACL of {} partition".format(
-                        ip_acl, nas_partition_name
+                        acl_ip, nas_partition_name
                     ),
                     changed=True
                 )
@@ -140,6 +140,7 @@ def run_module():
 
 def main():
     run_module()
+
 
 if __name__ == '__main__':
     main()
