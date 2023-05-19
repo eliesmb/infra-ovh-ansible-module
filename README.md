@@ -4,9 +4,10 @@
 
 Tested with:
 
-- Python 3.8
+- Python 3.9
 - [Python-ovh 1.0](https://github.com/ovh/python-ovh)
-- Ansible 2.11+
+- Ansible 2.12+
+- flake8
 
 ## Collection
 
@@ -19,7 +20,9 @@ ansible-galaxy collection install git+https://github.com/synthesio/infra-ovh-ans
 This collection provides the following modules:
 
 ```text
+dedicated_nasha_manage_partition
 dedicated_server_boot
+dedicated_server_boot_wait
 dedicated_server_display_name
 dedicated_server_info
 dedicated_server_install
@@ -112,6 +115,7 @@ A few examples:
     record_type: "A"
     name: "internal.bar"
     record_ttl: 10
+    append: true
 
 ```
 
