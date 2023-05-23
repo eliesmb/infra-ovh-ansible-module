@@ -114,12 +114,13 @@ def run_module():
     nas_partition_acl_state =  module.params['nas_partition_acl_state']
     nas_partition_snapshot_state =  module.params['nas_partition_snapshot_state']
 
+    ## Message that will be sent at the end of execution
     final_message= ""
 
-    # Check partition state
-
+    ## If partition state is absent, we delete it and exit module execution
     if nas_partition_state == "absent":
         try:
+            ## Delete the partition
             client.delete(
                 '/dedicated/nasha/{0}/partition/{1}'.format(nas_service_name, nas_partition_name)
             )
@@ -132,13 +133,16 @@ def run_module():
                     ),
                     changed=True,
                 )
+    ## State is present
     else:
-        # If partition does not exists
+        ## Partitions of nas
         res=client.get('/dedicated/nasha/{0}/partition'.format(nas_service_name))
+
+        ## If partition does not exists, we create it
         if not nas_partition_name in res:
-            # Create partition
             if not module.check_mode:
                 try:
+                    ## Create partition
                     client.post(
                         '/dedicated/nasha/{0}/partition'.format(nas_service_name),
                         size=nas_partition_size,
@@ -153,12 +157,6 @@ def run_module():
                 max_retry = 50
                 sleep = 10
 
-                res = client.get(
-                            '/dedicated/nasha/{0}/partition'.format(
-                                nas_service_name
-                            )
-                )
-
                 # Wait for availability of new partition
                 i=0
                 while not nas_partition_name in res and i < max_retry:
@@ -172,7 +170,7 @@ def run_module():
 
                 ## SNAPSHOT MANAGEMENT
 
-                # If state is absent, we delete all snapshot types
+                ## If state is absent, we delete all snapshot types
                 if nas_partition_snapshot_state == "absent" :
                     snapshotTypes = client.get(
                             '/dedicated/nasha/{0}/partition/{1}/snapshot'.format(
@@ -185,16 +183,18 @@ def run_module():
                                 nas_service_name, nas_partition_name, snapshotType
                             )
                         )
-                # State is present so we add a snapshotType
+                ## State is present so we add a snapshotType
                 else:
 
                     try:
+                        ## Everytime a snapshot is created, type is set to hour-1, so we delete it if hour-1 is not the desired snapshot type
                         if nas_partition_snapshot_type != "hour-1":
                             client.delete(
                                 '/dedicated/nasha/{0}/partition/{1}/snapshot/{2}'.format(
                                     nas_service_name, nas_partition_name, nas_partition_snapshot_type
                                 )
                             )
+                        ## Add snapshot type
                         client.post(
                             '/dedicated/nasha/{0}/partition/{1}/snapshot'.format(
                                 nas_service_name, nas_partition_name
@@ -216,6 +216,9 @@ def run_module():
                     module.fail_json(msg="Failed to get partition: %s" % error)
 
 
+    ## ACLs management
+
+    ## If ACL state is absent, we delete all ACLs
     if nas_partition_acl_state == "absent":
         try:
             ips = client.get(
@@ -286,6 +289,7 @@ def run_module():
                 ):
                     acl_changes.append(acl)
 
+            ## Add ACLs
             if acl_changes:
                 if not module.check_mode:
                     for acl in acl_changes:
