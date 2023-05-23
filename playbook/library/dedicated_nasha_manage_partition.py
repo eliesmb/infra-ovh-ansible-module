@@ -8,7 +8,7 @@ __metaclass__ = type
 import time
 from ansible.module_utils.basic import AnsibleModule
 
-DOCUMENTATION = '''
+DOCUMENTATION = """
 ---
 module: dedicated_nasha_manage_partition
 short_description: Create a nasha partition.
@@ -44,9 +44,9 @@ options:
             - The IP address or CIDR range for the ACL
             - The type of ACL, either readwrite or readonly. ( Default 'readwrite')
 
-'''
+"""
 
-EXAMPLES = '''
+EXAMPLES = """
 - name: Create a nasha partition with specified ACL and configure snapshot
   synthesio.ovh.dedicated_nasha_manage_partition:
     nas_service_name: "{{ nas_service_name }}"
@@ -60,13 +60,13 @@ EXAMPLES = '''
         type: readonly
       - ip: XX.XX.XX.XX/32
     nas_partition_snapshot_type: "{{ nas_partition_snapshot_type }}"
-'''
+"""
 
-RETURN = '''
+RETURN = """
 changed:
     description: Indicates whether the module made any changes.
     type: bool
-'''
+"""
 
 from ansible_collections.synthesio.ovh.plugins.module_utils.ovh import (
     ovh_api_connect,
@@ -88,55 +88,52 @@ def run_module():
             nas_service_name=dict(required=True),
             nas_partition_name=dict(required=True),
             nas_partition_size=dict(required=True),
-            nas_protocol=dict(required=True, choices=['NFS', 'CIFS', 'NFS_CIFS']),
+            nas_protocol=dict(required=True, choices=["NFS", "CIFS", "NFS_CIFS"]),
             nas_partition_acl=dict(required=False, type="list", default=[]),
             nas_partition_snapshot_type=dict(required=True),
             nas_partition_state=dict(required=True),
             nas_partition_acl_state=dict(required=True),
-            nas_partition_snapshot_state=dict(required=True)
+            nas_partition_snapshot_state=dict(required=True),
         )
     )
 
-    module = AnsibleModule(
-        argument_spec=module_args,
-        supports_check_mode=True
-    )
+    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     client = ovh_api_connect(module)
 
-    nas_service_name = module.params['nas_service_name']
-    nas_partition_name = module.params['nas_partition_name']
-    nas_partition_size = module.params['nas_partition_size']
-    nas_protocol = module.params['nas_protocol']
-    nas_partition_acl = module.params['nas_partition_acl']
-    nas_partition_snapshot_type = module.params['nas_partition_snapshot_type']
-    nas_partition_state = module.params['nas_partition_state']
-    nas_partition_acl_state =  module.params['nas_partition_acl_state']
-    nas_partition_snapshot_state =  module.params['nas_partition_snapshot_state']
+    nas_service_name = module.params["nas_service_name"]
+    nas_partition_name = module.params["nas_partition_name"]
+    nas_partition_size = module.params["nas_partition_size"]
+    nas_protocol = module.params["nas_protocol"]
+    nas_partition_acl = module.params["nas_partition_acl"]
+    nas_partition_snapshot_type = module.params["nas_partition_snapshot_type"]
+    nas_partition_state = module.params["nas_partition_state"]
+    nas_partition_acl_state = module.params["nas_partition_acl_state"]
+    nas_partition_snapshot_state = module.params["nas_partition_snapshot_state"]
 
     ## Message that will be sent at the end of execution
-    final_message= ""
+    final_message = ""
 
     ## If partition state is absent, we delete it and exit module execution
     if nas_partition_state == "absent":
         try:
             ## Delete the partition
             client.delete(
-                '/dedicated/nasha/{0}/partition/{1}'.format(nas_service_name, nas_partition_name)
+                "/dedicated/nasha/{0}/partition/{1}".format(
+                    nas_service_name, nas_partition_name
+                )
             )
         except APIError as api_error:
             module.fail_json(msg="Failed to create partition: %s" % api_error)
 
         module.exit_json(
-                    msg="Partition {} has been deleted.".format(
-                        nas_partition_name
-                    ),
-                    changed=True,
-                )
+            msg="Partition {} has been deleted.".format(nas_partition_name),
+            changed=True,
+        )
     ## State is present
     else:
         ## Partitions of nas
-        res=client.get('/dedicated/nasha/{0}/partition'.format(nas_service_name))
+        res = client.get("/dedicated/nasha/{0}/partition".format(nas_service_name))
 
         ## If partition does not exists, we create it
         if not nas_partition_name in res:
@@ -144,7 +141,7 @@ def run_module():
                 try:
                     ## Create partition
                     client.post(
-                        '/dedicated/nasha/{0}/partition'.format(nas_service_name),
+                        "/dedicated/nasha/{0}/partition".format(nas_service_name),
                         size=nas_partition_size,
                         partitionName=nas_partition_name,
                         protocol=nas_protocol,
@@ -152,34 +149,34 @@ def run_module():
                 except APIError as api_error:
                     module.fail_json(msg="Failed to create partition: %s" % api_error)
 
-                final_message = "Partition {} has been created ".format(nas_partition_name)
+                final_message = "Partition {} has been created ".format(
+                    nas_partition_name
+                )
 
                 max_retry = 50
                 sleep = 10
 
                 # Wait for availability of new partition
-                i=0
+                i = 0
                 while not nas_partition_name in res and i < max_retry:
                     time.sleep(float(sleep))
                     res = client.get(
-                        '/dedicated/nasha/{0}/partition'.format(
-                            nas_service_name
-                        )
+                        "/dedicated/nasha/{0}/partition".format(nas_service_name)
                     )
-                    i+=1
+                    i += 1
 
                 ## SNAPSHOT MANAGEMENT
 
                 ## If state is absent, we delete all snapshot types
-                if nas_partition_snapshot_state == "absent" :
+                if nas_partition_snapshot_state == "absent":
                     snapshotTypes = client.get(
-                            '/dedicated/nasha/{0}/partition/{1}/snapshot'.format(
-                                nas_service_name, nas_partition_name
-                            )
+                        "/dedicated/nasha/{0}/partition/{1}/snapshot".format(
+                            nas_service_name, nas_partition_name
+                        )
                     )
                     for snapshotType in snapshotTypes:
                         client.delete(
-                            '/dedicated/nasha/{0}/partition/{1}/snapshot/{2}'.format(
+                            "/dedicated/nasha/{0}/partition/{1}/snapshot/{2}".format(
                                 nas_service_name, nas_partition_name, snapshotType
                             )
                         )
@@ -190,19 +187,23 @@ def run_module():
                         ## Everytime a snapshot is created, type is set to hour-1, so we delete it if hour-1 is not the desired snapshot type
                         if nas_partition_snapshot_type != "hour-1":
                             client.delete(
-                                '/dedicated/nasha/{0}/partition/{1}/snapshot/{2}'.format(
-                                    nas_service_name, nas_partition_name, nas_partition_snapshot_type
+                                "/dedicated/nasha/{0}/partition/{1}/snapshot/{2}".format(
+                                    nas_service_name,
+                                    nas_partition_name,
+                                    nas_partition_snapshot_type,
                                 )
                             )
                         ## Add snapshot type
                         client.post(
-                            '/dedicated/nasha/{0}/partition/{1}/snapshot'.format(
+                            "/dedicated/nasha/{0}/partition/{1}/snapshot".format(
                                 nas_service_name, nas_partition_name
                             ),
                             snapshotType=nas_partition_snapshot_type,
                         )
 
-                        final_message = final_message + "with snapshot type {} ".format(nas_partition_snapshot_type)
+                        final_message = final_message + "with snapshot type {} ".format(
+                            nas_partition_snapshot_type
+                        )
 
                     except APIError as api_error:
                         module.fail_json(
@@ -211,10 +212,9 @@ def run_module():
             else:
                 # Get partition
                 try:
-                    client.get('/dedicated/nasha/{0}'.format(nas_service_name))
+                    client.get("/dedicated/nasha/{0}".format(nas_service_name))
                 except (APIError, ResourceNotFoundError) as error:
                     module.fail_json(msg="Failed to get partition: %s" % error)
-
 
     ## ACLs management
 
@@ -222,14 +222,14 @@ def run_module():
     if nas_partition_acl_state == "absent":
         try:
             ips = client.get(
-                '/dedicated/nasha/{0}/partition/{1}/access'.format(
+                "/dedicated/nasha/{0}/partition/{1}/access".format(
                     nas_service_name, nas_partition_name
                 )
             )
 
             for ip in ips:
                 client.delete(
-                    '/dedicated/nasha/{0}/partition/{1}/access/{2}'.format(
+                    "/dedicated/nasha/{0}/partition/{1}/access/{2}".format(
                         nas_service_name, nas_partition_name, ip
                     )
                 )
@@ -245,14 +245,14 @@ def run_module():
             acl_exists = []
             try:
                 existing_acls = client.get(
-                    '/dedicated/nasha/{0}/partition/{1}/access'.format(
+                    "/dedicated/nasha/{0}/partition/{1}/access".format(
                         nas_service_name, nas_partition_name
                     )
                 )
                 for ip in existing_acls:
                     try:
-                        current_acl=client.get(
-                            '/dedicated/nasha/{0}/partition/{1}/access/{2}'.format(
+                        current_acl = client.get(
+                            "/dedicated/nasha/{0}/partition/{1}/access/{2}".format(
                                 nas_service_name, nas_partition_name, ip
                             )
                         )
@@ -267,13 +267,13 @@ def run_module():
             # Check if ACLs have changed
             acl_changes = []
             for acl in nas_partition_acl:
-                acl_ip = acl.get('ip')
-                acl_type = acl.get('type', 'readwrite')
+                acl_ip = acl.get("ip")
+                acl_type = acl.get("type", "readwrite")
 
                 # Check if ACL already exists
                 acl_exists = any(
-                    existing_acl.get('ip') == acl_ip
-                    and existing_acl.get('type') == acl_type
+                    existing_acl.get("ip") == acl_ip
+                    and existing_acl.get("type") == acl_type
                     for existing_acl in existing_acls_formated
                 )
 
@@ -282,8 +282,8 @@ def run_module():
                     not acl_exists
                     or acl_exists
                     and not any(
-                        existing_acl.get('ip') == acl_ip
-                        and existing_acl.get('type') != acl_type
+                        existing_acl.get("ip") == acl_ip
+                        and existing_acl.get("type") != acl_type
                         for existing_acl in existing_acls_formated
                     )
                 ):
@@ -293,28 +293,27 @@ def run_module():
             if acl_changes:
                 if not module.check_mode:
                     for acl in acl_changes:
-                        acl_ip = acl.get('ip')
-                        acl_type = acl.get('type', 'readwrite')
+                        acl_ip = acl.get("ip")
+                        acl_type = acl.get("type", "readwrite")
                         try:
                             client.post(
-                                '/dedicated/nasha/{0}/partition/{1}/access'.format(
+                                "/dedicated/nasha/{0}/partition/{1}/access".format(
                                     nas_service_name, nas_partition_name
                                 ),
                                 ip=acl_ip,
                                 type=acl_type,
                             )
 
-                            final_message = final_message + " And Acls for {}".format(nas_partition_acl)
+                            final_message = final_message + " And Acls for {}".format(
+                                nas_partition_acl
+                            )
 
                         except APIError as api_error:
                             module.fail_json(
                                 msg="Failed to set partition ACL: %s" % api_error
                             )
 
-                    module.exit_json(
-                        msg=final_message,
-                        changed=True
-                    )
+                    module.exit_json(msg=final_message, changed=True)
                 else:
                     module.exit_json(
                         msg="ACLs of {} partition would be updated".format(
@@ -344,4 +343,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
