@@ -1,0 +1,27 @@
+# - name: "Start test"
+#   hosts: localhost
+#   roles:
+#     - role: roles/ovhtemplate/nasha
+#       vars:
+#         nas_service_name: "{{ nas_service_name }}"
+#         nas_partition_name: "{{ nas_partition_name }}"
+
+- hosts: localhost
+  tasks:
+  - name: Create a nasha partition with specified ACL
+    dedicated_nasha_manage_partition:
+      nas_service_name: "{{ nas_service_name }}"
+      nas_partition_name: "{{ nas_partition_name }}"
+      nas_partition_size: 10
+      nas_protocol: NFS
+      nas_partition_snapshot_type: "{{ nas_partition_snapshot_type }}"
+      nas_partition_state: "{{ nas_partition_state }}"
+      nas_partition_acl_state: "{{ nas_partition_acl_state }}"
+      nas_partition_snapshot_state: "{{ nas_partition_snapshot_state }}"
+      nas_partition_acl:
+        - ip: 10.10.10.10/32
+          type: readwrite
+        - ip: 10.10.35.10/32
+          type: readwrite
+        - ip: 25.25.25.25/32
+          type: readonly
