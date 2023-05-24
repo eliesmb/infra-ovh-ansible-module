@@ -10,18 +10,25 @@
   tasks:
   - name: Create a nasha partition with specified ACL
     dedicated_nasha_manage_partition:
+      state: present
       nas_service_name: "{{ nas_service_name }}"
       nas_partition_name: "{{ nas_partition_name }}"
       nas_partition_size: 10
       nas_protocol: NFS
-      nas_partition_snapshot_type: "{{ nas_partition_snapshot_type }}"
-      nas_partition_state: "{{ nas_partition_state }}"
-      nas_partition_acl_state: "{{ nas_partition_acl_state }}"
-      nas_partition_snapshot_state: "{{ nas_partition_snapshot_state }}"
+      nas_partition_snapshot_type:
+        - type: day-1
+          state: present
+        - type: hour-1
+          state: absent
       nas_partition_acl:
         - ip: 10.10.10.10/32
           type: readwrite
+          state: present
         - ip: 10.10.35.10/32
           type: readwrite
+          state: present
         - ip: 25.25.25.25/32
           type: readonly
+          state: present
+      max_retry: 50
+      sleep: 10
