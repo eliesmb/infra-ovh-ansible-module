@@ -198,8 +198,8 @@ def run_module():
 
                 ## For every snapshot type, add or remove it depending on state
                 for snapshot in nas_partition_snapshot_type:
-                    snapshot_type=snapshot.get("type","present")
-                    if snapshot_type == "absent":
+                    snapshot_state=snapshot.get("state","present")
+                    if snapshot_state == "absent":
                         ##Delete snapshot
                         try:
                             client.delete(
