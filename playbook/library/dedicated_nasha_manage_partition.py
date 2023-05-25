@@ -43,7 +43,20 @@ options:
             - List of dictionaries specifying the ACLs. Each dictionary should contain the following keys
             - The IP address or CIDR range for the ACL
             - The type of ACL, either readwrite or readonly. ( Default 'readwrite')
-
+    nas_partition_snapshot_type
+        required: false
+        type: list
+        default: []
+        description:
+            - List of snapshot types
+    max_retry:
+        required: false
+        description: Number of retry
+        default: 240
+    sleep:
+        required: false
+        description: Time to sleep between retries
+        default: 10
 """
 
 EXAMPLES = """
@@ -56,10 +69,19 @@ EXAMPLES = """
     nas_partition_acl:
       - ip: XX.XX.XX.XX/32
         type: readwrite
+        state: present
       - ip: XX.XX.XX.XX/32
         type: readonly
+        state: present
       - ip: XX.XX.XX.XX/32
-    nas_partition_snapshot_type: "{{ nas_partition_snapshot_type }}"
+    nas_partition_snapshot_type:
+      - type: hour-1
+        state: absent
+      - type: day-1
+        state: present
+    state: "{{ state }}"
+    sleep: 10
+    max_retry: 50
 """
 
 RETURN = """
