@@ -313,7 +313,7 @@ def run_module():
                         try:
                             client.delete(
                                 "/dedicated/nasha/{0}/partition/{1}/access/{2}".format(
-                                    nas_service_name, nas_partition_name, acl_ip[:-3]
+                                    nas_service_name, nas_partition_name, acl_ip.split("/")[0]
                                 )
                             )
 
