@@ -16,19 +16,19 @@
       nas_partition_size: 10
       nas_protocol: NFS
       nas_partition_snapshot_type:
-        - type: day-1
-          state: present
+        # - type: day-1
+        #   state: present
         - type: hour-1
           state: absent
       nas_partition_acl:
-        - ip: 10.10.10.10/32
-          type: readwrite
-          state: present
-        - ip: 10.10.35.10/32
-          type: readwrite
-          state: present
-        - ip: 25.25.25.25/32
-          type: readonly
-          state: present
+        # - ip: 10.10.10.10/32
+        #   type: readwrite
+        #   state: present
+        # - ip: 10.10.35.10/32
+        #   type: readwrite
+        #   state: present
+        # - ip: 25.25.25.25/32
+        #   type: readonly
+        #   state: absent
       max_retry: 50
       sleep: 10
