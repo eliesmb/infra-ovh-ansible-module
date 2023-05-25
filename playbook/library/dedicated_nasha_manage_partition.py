@@ -207,10 +207,6 @@ def run_module():
                                     nas_service_name, nas_partition_name, snapshot.get("type")
                                 )
                             )
-                            module.exit_json(
-                                msg="Snapshot {} has been deleted.".format(nas_partition_name),
-                                changed=True,
-                            )
                         except APIError as api_error:
                             module.fail_json(
                                 msg="Failed to set partition snapshot: %s" % api_error
