@@ -143,8 +143,11 @@ def run_module():
 
     if not module.check_mode:
 
+        ## Partitions of nas
+        partitions = client.get("/dedicated/nasha/{0}/partition".format(nas_service_name))
+
         ## If partition state is absent, we delete it and exit module execution
-        if state == "absent":
+        if state == "absent" and nas_partition_name in partitions:
             try:
                 ## Delete the partition
                 client.delete(
@@ -161,11 +164,8 @@ def run_module():
             )
         ## State is present
         else:
-            ## Partitions of nas
-            res = client.get("/dedicated/nasha/{0}/partition".format(nas_service_name))
-
             ## If partition does not exists, we create it
-            if not nas_partition_name in res:
+            if not nas_partition_name in partitions:
                 try:
                     ## Create partition
                     client.post(
@@ -183,9 +183,9 @@ def run_module():
 
                 # Wait for availability of new partition
                 i = 0
-                while not nas_partition_name in res and i < float(max_retry):
+                while not nas_partition_name in partitions and i < float(max_retry):
                     time.sleep(float(sleep))
-                    res = client.get(
+                    partitions = client.get(
                         "/dedicated/nasha/{0}/partition".format(nas_service_name)
                     )
                     i += 1
