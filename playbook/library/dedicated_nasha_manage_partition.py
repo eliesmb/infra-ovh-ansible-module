@@ -103,6 +103,24 @@ except ImportError:
     HAS_OVH = False
 
 
+def wait_for_tasks_to_complete(storage, service, **kwargs):
+    waitForCompletion=True
+    while waitForCompletion:
+        waitForCompletion=False
+        tasks = client.get(f"/dedicated/{storage}/{service}/task", kwargs)
+        for task in tasks:
+            try:
+                task_info = client.get(f"/dedicated/{storage}/{service}/task/{task}")
+                if task_info["status"] != "done":
+                    waitForCompletion=True
+                    print(f"Task {task} is in {task_info['status']} status, waiting for its completion...")
+            except ovh.exceptions.APIError:
+                # The taskId does not exist anymore
+                continue
+        if waitForCompletion:
+            time.sleep(10)
+
+
 def run_module():
     module_args = ovh_argument_spec()
     module_args.update(
@@ -174,6 +192,7 @@ def run_module():
                         partitionName=nas_partition_name,
                         protocol=nas_protocol,
                     )
+                    wait_for_tasks_to_complete("nasha", nas_service_name)
                 except APIError as api_error:
                     module.fail_json(msg="Failed to create partition: %s" % api_error)
 
@@ -257,6 +276,7 @@ def run_module():
                                 ),
                                 snapshotType=snapshot.get("type")
                             )
+                            wait_for_tasks_to_complete("nasha", nas_service_name)
                         except APIError as api_error:
                             module.fail_json(
                                 msg="Failed to set partition snapshot: %s" % api_error
@@ -374,6 +394,7 @@ def run_module():
                             ip=acl_ip,
                             type=acl_type,
                         )
+                        wait_for_tasks_to_complete("nasha", nas_service_name)
 
                     except APIError as api_error:
                         module.fail_json(
