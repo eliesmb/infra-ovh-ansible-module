@@ -19,10 +19,10 @@
         # - type: day-1
         #   state: present
         - type: hour-1
-          state: absent
+          state: present
       nas_partition_acl:
-        # - ip: 10.10.10.10/32
-        #   type: readwrite
+        - ip: 10.10.10.10/32
+          type: readwrite
         #   state: present
         # - ip: 10.10.35.10/32
         #   type: readwrite

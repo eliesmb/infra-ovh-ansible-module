@@ -5,7 +5,6 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
-import time
 from ansible.module_utils.basic import AnsibleModule
 
 DOCUMENTATION = """
@@ -52,11 +51,11 @@ options:
     max_retry:
         required: false
         description: Number of retry
-        default: 240
+        default: 120
     sleep:
         required: false
         description: Time to sleep between retries
-        default: 10
+        default: 5
 """
 
 EXAMPLES = """
@@ -80,8 +79,8 @@ EXAMPLES = """
       - type: day-1
         state: present
     state: "{{ state }}"
-    sleep: 10
-    max_retry: 50
+    sleep: 5
+    max_retry: 120
 """
 
 RETURN = """
@@ -94,20 +93,27 @@ from ansible_collections.synthesio.ovh.plugins.module_utils.ovh import (
     ovh_api_connect,
     ovh_argument_spec,
 )
+import time
+
 
 try:
     from ovh.exceptions import APIError, ResourceNotFoundError
-
     HAS_OVH = True
 except ImportError:
     HAS_OVH = False
 
 
-def wait_for_tasks_to_complete(storage, service, **kwargs):
+def wait_for_tasks_to_complete(client, storage, service, sleep, max_retry):
+    i=0
     waitForCompletion=True
-    while waitForCompletion:
+    while waitForCompletion and i < float(max_retry):
         waitForCompletion=False
-        tasks = client.get(f"/dedicated/{storage}/{service}/task", kwargs)
+        tasks = client.get(
+            "/dedicated/{0}/{1}/task".format(
+                str(storage),
+                str(service),
+                ),
+            )
         for task in tasks:
             try:
                 task_info = client.get(f"/dedicated/{storage}/{service}/task/{task}")
@@ -118,10 +124,15 @@ def wait_for_tasks_to_complete(storage, service, **kwargs):
                 # The taskId does not exist anymore
                 continue
         if waitForCompletion:
-            time.sleep(10)
+            time.sleep(float(sleep))
+        i+=1
 
 
 def run_module():
+
+
+
+
     module_args = ovh_argument_spec()
     module_args.update(
         dict(
@@ -132,13 +143,12 @@ def run_module():
             nas_partition_acl=dict(required=False, type="list", default=[]),
             nas_partition_snapshot_type=dict(required=False, type="list", defaults=[]),
             state=dict(required=False, default="present"),
-            max_retry=dict(required=False, default=50),
-            sleep=dict(required=False, default=10)
+            max_retry=dict(required=False, default=120),
+            sleep=dict(required=False, default=5)
         )
     )
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
-
     client = ovh_api_connect(module)
 
     nas_service_name = module.params["nas_service_name"]
@@ -151,11 +161,10 @@ def run_module():
     max_retry = module.params["max_retry"]
     sleep = module.params["sleep"]
 
+
+
     ## Message that will be sent at the end of execution
     final_message = ""
-
-
-
 
 ############# PARTITION MANAGEMENT #############
 
@@ -192,23 +201,13 @@ def run_module():
                         partitionName=nas_partition_name,
                         protocol=nas_protocol,
                     )
-                    wait_for_tasks_to_complete("nasha", nas_service_name)
+                    wait_for_tasks_to_complete(client, "nasha", nas_service_name, sleep, max_retry)
                 except APIError as api_error:
                     module.fail_json(msg="Failed to create partition: %s" % api_error)
 
                 final_message = "Partition {} has been created ".format(
                     nas_partition_name
                 )
-
-                # Wait for availability of new partition
-                i = 0
-                while not nas_partition_name in partitions and i < float(max_retry):
-                    time.sleep(float(sleep))
-                    partitions = client.get(
-                        "/dedicated/nasha/{0}/partition".format(nas_service_name)
-                    )
-                    i += 1
-
 
 
 ############# SNAPSHOT MANAGEMENT #############
@@ -276,7 +275,7 @@ def run_module():
                                 ),
                                 snapshotType=snapshot.get("type")
                             )
-                            wait_for_tasks_to_complete("nasha", nas_service_name)
+                            wait_for_tasks_to_complete(client, "nasha", nas_service_name, sleep, max_retry)
                         except APIError as api_error:
                             module.fail_json(
                                 msg="Failed to set partition snapshot: %s" % api_error
@@ -394,7 +393,7 @@ def run_module():
                             ip=acl_ip,
                             type=acl_type,
                         )
-                        wait_for_tasks_to_complete("nasha", nas_service_name)
+                        wait_for_tasks_to_complete(client, "nasha", nas_service_name, sleep, max_retry)
 
                     except APIError as api_error:
                         module.fail_json(
