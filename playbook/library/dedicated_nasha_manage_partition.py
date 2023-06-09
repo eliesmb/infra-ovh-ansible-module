@@ -29,6 +29,10 @@ options:
         required: true
         description:
             - The size of the partition you want to create in Gb. Must be >= 10 Gb
+    nas_partition_description:
+        required: false
+        description:
+            - The description of the partition
     nas_protocol:
         required: true
         choices: ['NFS', 'CIFS', 'NFS_CIFS']
@@ -64,6 +68,7 @@ EXAMPLES = """
     nas_service_name: "{{ nas_service_name }}"
     nas_partition_name: "{{ nas_partition_name }}"
     nas_partition_size: 10
+    nas_partition_description: "My Partition for my backup"
     nas_protocol: NFS
     nas_partition_acl:
       - ip: XX.XX.XX.XX/32
@@ -104,10 +109,10 @@ except ImportError:
 
 
 def wait_for_tasks_to_complete(client, storage, service, sleep, max_retry):
-    i=0
-    waitForCompletion=True
+    i = 0
+    waitForCompletion = True
     while waitForCompletion and i < float(max_retry):
-        waitForCompletion=False
+        waitForCompletion = False
         tasks = client.get(
             "/dedicated/{0}/{1}/task".format(
                 str(storage),
@@ -138,6 +143,7 @@ def run_module():
         dict(
             nas_service_name=dict(required=True),
             nas_partition_name=dict(required=True),
+            nas_partition_description=dict(required=False),
             nas_partition_size=dict(required=True),
             nas_protocol=dict(required=True, choices=["NFS", "CIFS", "NFS_CIFS"]),
             nas_partition_acl=dict(required=False, type="list", default=[]),
@@ -153,6 +159,7 @@ def run_module():
 
     nas_service_name = module.params["nas_service_name"]
     nas_partition_name = module.params["nas_partition_name"]
+    nas_partition_description = module.params["nas_partition_description"]
     nas_partition_size = module.params["nas_partition_size"]
     if int(nas_partition_size) < 10:
         module.fail_json(msg="Partition size must be greater than or equal to 10 Gb.")
@@ -199,9 +206,10 @@ def run_module():
                     ## Create partition
                     client.post(
                         "/dedicated/nasha/{0}/partition".format(nas_service_name),
-                        size=nas_partition_size,
+                        partitionDescription=nas_partition_description,
                         partitionName=nas_partition_name,
                         protocol=nas_protocol,
+                        size=nas_partition_size,
                     )
                     wait_for_tasks_to_complete(client, "nasha", nas_service_name, sleep, max_retry)
                 except APIError as api_error:
