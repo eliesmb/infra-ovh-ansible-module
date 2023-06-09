@@ -288,7 +288,7 @@ def run_module():
                 if changed_snapshots:
                     for snapshot in changed_snapshots:
                         try:
-                            client.post(
+                            res = client.post(
                                 "/dedicated/nasha/{0}/partition/{1}/snapshot".format(
                                     nas_service_name, nas_partition_name
                                 ),
@@ -299,7 +299,7 @@ def run_module():
                             )
                         except APIError as api_error:
                             module.fail_json(
-                                msg="Failed to configure partition snapshot %s on %s : %s" % ( snapshot.get("type"), nas_partition_name, api_error )
+                                msg="Failed to configure partition snapshot %s on %s [%s] : %s , %s" % ( snapshot.get("type"), nas_partition_name, res, api_error, repr(api_error) )
                             )
 
                 final_message = final_message + " with snapshot type {} ".format(
