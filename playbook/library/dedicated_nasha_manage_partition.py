@@ -117,27 +117,25 @@ def wait_for_tasks_to_complete(client, storage, service, sleep, max_retry):
             "/dedicated/{0}/{1}/task".format(
                 str(storage),
                 str(service),
-                ),
-            )
+            ),
+        )
         for task in tasks:
             try:
                 task_info = client.get(f"/dedicated/{storage}/{service}/task/{task}")
                 if task_info["status"] != "done":
-                    waitForCompletion=True
-                    print(f"Task {task} is in {task_info['status']} status, waiting for its completion...")
+                    waitForCompletion = True
+                    print(
+                        f"Task {task} is in {task_info['status']} status, waiting for its completion..."
+                    )
             except ovh.exceptions.APIError:
                 # The taskId does not exist anymore
                 continue
         if waitForCompletion:
             time.sleep(float(sleep))
-        i+=1
+        i += 1
 
 
 def run_module():
-
-
-
-
     module_args = ovh_argument_spec()
     module_args.update(
         dict(
@@ -150,7 +148,7 @@ def run_module():
             nas_partition_snapshot_type=dict(required=False, type="list", defaults=[]),
             state=dict(required=False, default="present"),
             max_retry=dict(required=False, default=120),
-            sleep=dict(required=False, default=5)
+            sleep=dict(required=False, default=5),
         )
     )
 
@@ -170,17 +168,16 @@ def run_module():
     max_retry = module.params["max_retry"]
     sleep = module.params["sleep"]
 
-
-
     ## Message that will be sent at the end of execution
     final_message = ""
 
-############# PARTITION MANAGEMENT #############
+    ############# PARTITION MANAGEMENT #############
 
     if not module.check_mode:
-
         ## Partitions of nas
-        partitions = client.get("/dedicated/nasha/{0}/partition".format(nas_service_name))
+        partitions = client.get(
+            "/dedicated/nasha/{0}/partition".format(nas_service_name)
+        )
 
         ## If partition state is absent, we delete it and exit module execution
         if state == "absent" and nas_partition_name in partitions:
@@ -211,7 +208,9 @@ def run_module():
                         protocol=nas_protocol,
                         size=nas_partition_size,
                     )
-                    wait_for_tasks_to_complete(client, "nasha", nas_service_name, sleep, max_retry)
+                    wait_for_tasks_to_complete(
+                        client, "nasha", nas_service_name, sleep, max_retry
+                    )
                 except APIError as api_error:
                     module.fail_json(msg="Failed to create partition: %s" % api_error)
 
@@ -219,23 +218,20 @@ def run_module():
                     nas_partition_name
                 )
 
-
-############# SNAPSHOT MANAGEMENT #############
-
+            ############# SNAPSHOT MANAGEMENT #############
 
             ## If nas_partition_snapshot_type exists and not empty
             if nas_partition_snapshot_type:
                 ## Snapshot that already exists for partition
-                existing_snapshots=[]
+                existing_snapshots = []
                 ## Snapshots to delete
-                delete_snapshots=[]
+                delete_snapshots = []
                 ## Snapshot that does not exists
-                changed_snapshots=[]
+                changed_snapshots = []
 
                 ## For every snapshot type, add or remove it depending on state
                 for snapshot in nas_partition_snapshot_type:
-
-                    snapshot_state=snapshot.get("state","present")
+                    snapshot_state = snapshot.get("state", "present")
 
                     ## Get all snapshots of partition
                     try:
@@ -250,14 +246,19 @@ def run_module():
                     ## For every snapshot to create, check state and if it already exists
                     ## Then append it to changed_snapshots
                     for snapshot in nas_partition_snapshot_type:
-                        if snapshot.get("state") == "present" and snapshot.get("type") not in existing_snapshots:
+                        if (
+                            snapshot.get("state") == "present"
+                            and snapshot.get("type") not in existing_snapshots
+                        ):
                             changed_snapshots.append(snapshot)
 
                     ## Check if snapshot state is absent and snapshot exists
                     ## Then append it to delete_snapshots
-                    if snapshot_state == "absent" and snapshot.get("type") in existing_snapshots:
+                    if (
+                        snapshot_state == "absent"
+                        and snapshot.get("type") in existing_snapshots
+                    ):
                         delete_snapshots.append(snapshot)
-
 
                 # Delete Snapshots
                 if delete_snapshots:
@@ -265,7 +266,9 @@ def run_module():
                         try:
                             client.delete(
                                 "/dedicated/nasha/{0}/partition/{1}/snapshot/{2}".format(
-                                    nas_service_name, nas_partition_name, snapshot.get("type")
+                                    nas_service_name,
+                                    nas_partition_name,
+                                    snapshot.get("type"),
                                 )
                             )
 
@@ -273,7 +276,6 @@ def run_module():
                             module.fail_json(
                                 msg="Failed to set partition ACL: %s" % api_error
                             )
-
 
                 ## If changed_snapshots is not empty
                 if changed_snapshots:
@@ -283,9 +285,11 @@ def run_module():
                                 "/dedicated/nasha/{0}/partition/{1}/snapshot".format(
                                     nas_service_name, nas_partition_name
                                 ),
-                                snapshotType=snapshot.get("type")
+                                snapshotType=snapshot.get("type"),
                             )
-                            wait_for_tasks_to_complete(client, "nasha", nas_service_name, sleep, max_retry)
+                            wait_for_tasks_to_complete(
+                                client, "nasha", nas_service_name, sleep, max_retry
+                            )
                         except APIError as api_error:
                             module.fail_json(
                                 msg="Failed to set partition snapshot: %s" % api_error
@@ -303,19 +307,14 @@ def run_module():
         except (APIError, ResourceNotFoundError) as error:
             module.fail_json(msg="Failed to get partition: %s" % error)
 
-
-
-
-############# ACL MANAGEMENT #############
-
+    ############# ACL MANAGEMENT #############
 
     if not module.check_mode:
-    # Set partition ACL
+        # Set partition ACL
         if nas_partition_acl:
             existing_acls = []
             existing_acls_formated = []
             acl_exists = []
-
 
             ## Get existing ACL
             try:
@@ -342,14 +341,13 @@ def run_module():
             except (APIError, ResourceNotFoundError):
                 pass
 
-
             # Check if ACLs have changed
             acl_changes = []
             acl_delete = []
             for acl in nas_partition_acl:
                 acl_ip = acl.get("ip")
                 acl_type = acl.get("type", "readwrite")
-                acl_state = acl.get("state","present")
+                acl_state = acl.get("state", "present")
 
                 # Check if ACL already exists
                 acl_exists = any(
@@ -357,7 +355,6 @@ def run_module():
                     and existing_acl.get("type") == acl_type
                     for existing_acl in existing_acls_formated
                 )
-
 
                 # If ACL does not exist or type is different, we append acl to acl_changes
                 if (
@@ -381,7 +378,9 @@ def run_module():
                     try:
                         client.delete(
                             "/dedicated/nasha/{0}/partition/{1}/access/{2}".format(
-                                nas_service_name, nas_partition_name, acl.get("ip").split("/")[0]
+                                nas_service_name,
+                                nas_partition_name,
+                                acl.get("ip").split("/")[0],
                             )
                         )
 
@@ -403,7 +402,9 @@ def run_module():
                             ip=acl_ip,
                             type=acl_type,
                         )
-                        wait_for_tasks_to_complete(client, "nasha", nas_service_name, sleep, max_retry)
+                        wait_for_tasks_to_complete(
+                            client, "nasha", nas_service_name, sleep, max_retry
+                        )
 
                     except APIError as api_error:
                         module.fail_json(
@@ -433,6 +434,7 @@ def run_module():
             client.get("/dedicated/nasha/{0}".format(nas_service_name))
         except (APIError, ResourceNotFoundError) as error:
             module.fail_json(msg="Failed to get partition: %s" % error)
+
 
 def main():
     if not HAS_OVH:
