@@ -173,6 +173,13 @@ def run_module():
 
     ############# PARTITION MANAGEMENT #############
 
+    # Check if zpool exist !
+    try:
+        client.get("/dedicated/nasha/{0}".format(nas_service_name))
+    except (APIError, ResourceNotFoundError) as error:
+        module.fail_json(msg="Failed to find nasha %s : %s" % (nas_service_name, error))
+
+
     if not module.check_mode:
         ## Partitions of nas
         partitions = client.get(
