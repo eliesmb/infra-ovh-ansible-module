@@ -168,11 +168,13 @@ def run_module():
 
 ############# PARTITION MANAGEMENT #############
 
-    if not module.check_mode:
-
-        ## Partitions of nas
+    ## Partitions of nas
+    try:
         partitions = client.get("/dedicated/nasha/{0}/partition".format(nas_service_name))
+    except APIError as api_error:
+        module.fail_json(msg="Failed to get partitions: %s" % api_error)
 
+    if not module.check_mode:
         ## If partition state is absent, we delete it and exit module execution
         if state == "absent" and nas_partition_name in partitions:
             try:
@@ -287,13 +289,7 @@ def run_module():
 
     ## Check mode
     else:
-        ## Get partition
-        try:
-            client.get("/dedicated/nasha/{0}".format(nas_service_name))
-        except (APIError, ResourceNotFoundError) as error:
-            module.fail_json(msg="Failed to get partition: %s" % error)
-
-
+        module.exit_json("Getting partitions : {0}".format(partitions))
 
 
 ############# ACL MANAGEMENT #############
