@@ -281,7 +281,7 @@ def run_module():
 
                         except APIError as api_error:
                             module.fail_json(
-                                msg="Failed to set partition ACL: %s" % api_error
+                                msg="Failed to delete snapshot %s on partition %s : %s" % ( snapshot.get("type"), nas_partition_name, api_error )
                             )
 
                 ## If changed_snapshots is not empty
@@ -299,7 +299,7 @@ def run_module():
                             )
                         except APIError as api_error:
                             module.fail_json(
-                                msg="Failed to set partition snapshot: %s" % api_error
+                                msg="Failed to configure partition snapshot %s on %s : %s" % ( snapshot.get("type"), nas_partition_name, api_error )
                             )
 
                 final_message = final_message + " with snapshot type {} ".format(
