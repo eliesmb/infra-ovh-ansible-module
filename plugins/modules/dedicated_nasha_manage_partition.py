@@ -101,6 +101,8 @@ def run_module():
     nas_service_name = module.params['nas_service_name']
     nas_partition_name = module.params['nas_partition_name']
     nas_partition_size = module.params['nas_partition_size']
+    if nas_partition_size < 10:
+        module.fail_json(msg="Partition size must be greater than or equal to 10 Gb.")
     nas_protocol = module.params['nas_protocol']
     nas_partition_acl = module.params['nas_partition_acl']
 
