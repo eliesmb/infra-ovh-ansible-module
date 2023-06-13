@@ -22,7 +22,7 @@
         - type: day-7
           state: present
         - type: day-3
-          state: absent
+          state: present
         - type: day-2
           state: present
         # - type: day-7

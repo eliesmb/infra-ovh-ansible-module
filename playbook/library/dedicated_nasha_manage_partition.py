@@ -230,41 +230,62 @@ def run_module():
             ## If nas_partition_snapshot_type exists and not empty
             if nas_partition_snapshot_type:
                 ## Snapshot that already exists for partition
-                existing_snapshots = []
-                ## Snapshots to delete
-                delete_snapshots = []
-                ## Snapshot that does not exists
-                changed_snapshots = []
+                nas_partition_snapshot_existing = []
+                ## Wanted snapshots
+                nas_partition_snapshot_wanted = nas_partition_snapshot_type
 
-                ## For every snapshot type, add or remove it depending on state
-                for snapshot in nas_partition_snapshot_type:
-                    snapshot_state = snapshot.get("state", "present")
-
-                    ## Get all snapshots of partition
-                    try:
-                        existing_snapshots = client.get(
-                            "/dedicated/nasha/{0}/partition/{1}/snapshot".format(
-                                nas_service_name, nas_partition_name
-                            )
+                ## Get all snapshots of partition
+                try:
+                    nas_partition_snapshot_existing = client.get(
+                        "/dedicated/nasha/{0}/partition/{1}/snapshot".format(
+                            nas_service_name, nas_partition_name
                         )
-                    except (APIError, ResourceNotFoundError):
-                        module.fail_json(
-                                msg="Failed to get existing snapshots"
-                        )
+                    )
+                except (APIError, ResourceNotFoundError):
+                    module.fail_json(
+                        msg="Failed to get snapshots list on partition %s : %s" % ( nas_partition_name, api_error )
+                    )
 
-                    ## For every snapshot to create, check state and if it already exists
-                    ## Then append it to changed_snapshots
-                    if snapshot.get('type') not in existing_snapshots and snapshot_state == "present":
-                        changed_snapshots.append(snapshot)
+                # init nas_partition_snapshot matrice
+                nas_partition_snapshot = [
+                    {'type': 'day-1', 'current_state': 'unknown', 'wanted_state': 'unknown', 'action': ''},
+                    {'type': 'day-2', 'current_state': 'unknown', 'wanted_state': 'unknown', 'action': ''},
+                    {'type': 'day-3', 'current_state': 'unknown', 'wanted_state': 'unknown', 'action': ''},
+                    {'type': 'day-7', 'current_state': 'unknown', 'wanted_state': 'unknown', 'action': ''},
+                    {'type': 'hour-1', 'current_state': 'unknown', 'wanted_state': 'unknown', 'action': ''},
+                    {'type': 'hour-6', 'current_state': 'unknown', 'wanted_state': 'unknown', 'action': ''}
+                ]
 
-                    ## Check if snapshot state is absent and snapshot exists
-                    ## Then append it to delete_snapshots
-                    if snapshot_state == "absent" and snapshot.get('type') in existing_snapshots:
-                        delete_snapshots.append(snapshot)
+                snapshot_sample = {'type': '', 'current_state': 'unknown', 'wanted_state': 'unknown', 'action': ''}
 
-                # Delete Snapshots
-                if delete_snapshots:
-                    for snapshot in delete_snapshots:
+                # Mettre à jour wanted_state dans nas_partition_snapshot
+                for wanted in nas_partition_snapshot_wanted:
+                    for snapshot in nas_partition_snapshot:
+                        if snapshot['type'] == wanted['type']:
+                            snapshot['wanted_state'] = wanted.get('state', 'present')
+
+                # Mettre à jour current_state dans nas_partition_snapshot
+                for snapshot in nas_partition_snapshot:
+                    if snapshot['type'] in nas_partition_snapshot_existing:
+                        snapshot['current_state'] = 'present'
+                    else:
+                        snapshot['current_state'] = 'absent'
+
+                    # Mettre à jour l'action dans nas_partition_snapshot en comparant current_state et wanted_state
+                    current_state = snapshot['current_state']
+                    wanted_state = snapshot['wanted_state']
+
+                    if current_state == wanted_state or current_state == 'present' and wanted_state == 'unknown' :
+                        snapshot['action'] = 'unchanged'
+                    elif current_state == 'present' and wanted_state == 'absent':
+                        snapshot['action'] = 'delete'
+                    elif current_state == 'absent' and wanted_state == 'present':
+                        snapshot['action'] = 'create'
+
+
+                    # Modify snapshots according to snapshot action
+                    # Delete snapshots
+                    if snapshot['action'] == "delete":
                         try:
                             client.delete(
                                 "/dedicated/nasha/{0}/partition/{1}/snapshot/{2}".format(
@@ -273,17 +294,14 @@ def run_module():
                                     snapshot.get("type"),
                                 )
                             )
-                            wait_for_tasks_to_complete(
-                                client, "nasha", nas_service_name, sleep, max_retry
-                            )
 
                         except APIError as api_error:
                             module.fail_json(
                                 msg="Failed to delete snapshot %s on partition %s : %s" % ( snapshot.get("type"), nas_partition_name, api_error )
                             )
 
-                if changed_snapshots:
-                    for snapshot in changed_snapshots:
+                    # Add snapshots
+                    elif snapshot['action'] == "create":
                         try:
                             res = client.post(
                                 "/dedicated/nasha/{0}/partition/{1}/snapshot".format(
@@ -292,18 +310,14 @@ def run_module():
                                 snapshotType=snapshot.get("type")
                             )
 
-                            wait_for_tasks_to_complete(
-                                client, "nasha", nas_service_name, sleep, max_retry
-                            )
-                # If changed_snapshots is not empty
                         except APIError as api_error:
                             module.fail_json(
-                                msg="Failed to configure partition snapshot %s %s on %s [%s] : %s , %s" % ( changed_snapshots, existing_snapshots, nas_partition_name, res, api_error, repr(api_error) )
+                                msg="Failed to configure partition snapshot %s on %s [%s] : %s , %s" % ( nas_partition_snapshot_wanted, nas_partition_name, res, api_error, repr(api_error) )
                             )
 
-                final_message = final_message + " with snapshot type {} ".format(
-                    nas_partition_snapshot_type
-                )
+                    wait_for_tasks_to_complete(
+                                client, "nasha", nas_service_name, sleep, max_retry
+                    )
 
     ## Check mode
     else:
