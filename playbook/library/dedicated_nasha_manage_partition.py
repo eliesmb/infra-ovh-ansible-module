@@ -248,23 +248,18 @@ def run_module():
                             )
                         )
                     except (APIError, ResourceNotFoundError):
-                        pass
+                        module.fail_json(
+                                msg="Failed to get existing snapshots"
+                        )
 
                     ## For every snapshot to create, check state and if it already exists
                     ## Then append it to changed_snapshots
-                    for snapshot in nas_partition_snapshot_type:
-                        if (
-                            snapshot.get("state") == "present"
-                            and snapshot.get("type") not in existing_snapshots
-                        ):
-                            changed_snapshots.append(snapshot)
+                    if snapshot.get('type') not in existing_snapshots and snapshot_state == "present":
+                        changed_snapshots.append(snapshot)
 
                     ## Check if snapshot state is absent and snapshot exists
                     ## Then append it to delete_snapshots
-                    if (
-                        snapshot_state == "absent"
-                        and snapshot.get("type") in existing_snapshots
-                    ):
+                    if snapshot_state == "absent" and snapshot.get('type') in existing_snapshots:
                         delete_snapshots.append(snapshot)
 
                 # Delete Snapshots
@@ -278,13 +273,15 @@ def run_module():
                                     snapshot.get("type"),
                                 )
                             )
+                            wait_for_tasks_to_complete(
+                                client, "nasha", nas_service_name, sleep, max_retry
+                            )
 
                         except APIError as api_error:
                             module.fail_json(
                                 msg="Failed to delete snapshot %s on partition %s : %s" % ( snapshot.get("type"), nas_partition_name, api_error )
                             )
 
-                ## If changed_snapshots is not empty
                 if changed_snapshots:
                     for snapshot in changed_snapshots:
                         try:
@@ -292,14 +289,16 @@ def run_module():
                                 "/dedicated/nasha/{0}/partition/{1}/snapshot".format(
                                     nas_service_name, nas_partition_name
                                 ),
-                                snapshotType=snapshot.get("type"),
+                                snapshotType=snapshot.get("type")
                             )
+
                             wait_for_tasks_to_complete(
                                 client, "nasha", nas_service_name, sleep, max_retry
                             )
+                # If changed_snapshots is not empty
                         except APIError as api_error:
                             module.fail_json(
-                                msg="Failed to configure partition snapshot %s on %s [%s] : %s , %s" % ( snapshot.get("type"), nas_partition_name, res, api_error, repr(api_error) )
+                                msg="Failed to configure partition snapshot %s %s on %s [%s] : %s , %s" % ( changed_snapshots, existing_snapshots, nas_partition_name, res, api_error, repr(api_error) )
                             )
 
                 final_message = final_message + " with snapshot type {} ".format(
